@@ -1,0 +1,4 @@
+# communication avec la db
+psycopg[binary]==3.3.6
+# gestion des variables d'environnement
+python-dotenv==1.2.4
