@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from psycopg import errors, Error, OperationalError
-from actions import patient_actions, allergy_actions, consultation_actions
+from actions import patient_actions, allergy_actions, consultation_actions, stats_actions
 from db import init_db, seed_db, DbConnection
 from console import ask_confirmation, print_title
 
@@ -97,12 +97,13 @@ MENU = {
 }
 
 MENU_STAT = {
-    "1" : ("Consultations per doctor", not_implemented),
-    "2" : ("Consultations per specialty", not_implemented),
-    "3" : ("Most prescribed medications", not_implemented),
-    "4" : ("Patients without consultation", not_implemented),
-    "5" : ("Allergy alerts", not_implemented),
-    "6" : ("Last consultation per patient", not_implemented),
+    "1" : ("Consultations per doctor", stats_actions.consultations_per_doctor),
+    "2" : ("Consultations per specialty", stats_actions.consultations_per_specialty),
+    "3" : ("Consultations per month", stats_actions.consultations_per_month),
+    "4" : ("Most prescribed medications", stats_actions.most_prescribed_medications),
+    "5" : ("Patients without consultation", stats_actions.patients_without_consultation),
+    "6" : ("Allergy alerts", stats_actions.allergy_alerts),
+    "7" : ("Last consultation per patient", stats_actions.last_consultation_per_patient),
 }
 
 def run_menu(conn: DbConnection) -> None:
