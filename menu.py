@@ -1,24 +1,24 @@
 from collections.abc import Callable
 
-from psycopg import Connection, errors, Error, OperationalError
-from db import init_db, seed_db
+from psycopg import errors, Error, OperationalError
+from db import init_db, seed_db, DbConnection
 from console import ask_confirmation, print_title
 
-Action = Callable[[Connection], None]
+Action = Callable[[DbConnection], None]
 
-def not_implemented(conn: Connection) -> None:
+def not_implemented(conn: DbConnection) -> None:
     """Placeholder for the options that are not developed yet
 
     Args:
-        conn (Connection): Connection to the database
+        conn (DbConnection): Connection to the database
     """
     print("Not implemented")
 
-def run_action(conn: Connection, action: Action) -> None:
+def run_action(conn: DbConnection, action: Action) -> None:
     """Run an action and report database errors without leaving the menu
 
     Args:
-        conn (Connection): Connection to the database
+        conn (DbConnection): Connection to the database
         action (Action): Action choose by the user
     """
     try:
@@ -35,22 +35,22 @@ def run_action(conn: Connection, action: Action) -> None:
     except Error as error: # Default error
         print(f"Database error: {error}")
 
-def show_statistics(conn: Connection) -> None:
+def show_statistics(conn: DbConnection) -> None:
     """Open the statistics submenu
 
     Args:
-        conn (Connection): Connection to the database
+        conn (DbConnection): Connection to the database
     """
     run_options_menu(conn, "Statistics", MENU_STAT, "Back")
 
-def run_options_menu(conn: Connection,
+def run_options_menu(conn: DbConnection,
                      title: str,
                      options: dict[str, tuple[str, Action]],
                      exit_label: str) -> None:
     """Display a menu in a loop and run the chosen action until the user types 0
 
     Args:
-        conn (Connection): Connection to the database
+        conn (DbConnection): Connection to the database
         title (str): Title displayed above the options
         options (dict[str, tuple[str, Action]]): Choice -> (label, action)
         exit_label (str): Label of the 0 option
@@ -70,11 +70,11 @@ def run_options_menu(conn: Connection,
         _, action = options[choice]
         run_action(conn, action)
 
-def reset_database(conn: Connection) -> None:
+def reset_database(conn: DbConnection) -> None:
     """Rebuild the tables and reload the test data, after confirmation
 
     Args:
-        conn (Connection): Connection to the database
+        conn (DbConnection): Connection to the database
     """
     if ask_confirmation("Are you sure you want to reset the database ?\n"
                      "You will lose all your data"):
@@ -104,10 +104,10 @@ MENU_STAT = {
     "6" : ("Last consultation per patient", not_implemented),
 }
 
-def run_menu(conn: Connection) -> None:
+def run_menu(conn: DbConnection) -> None:
     """Print the menu options and dispatch to the action
 
     Args:
-        conn (Connection): Connection to the database
+        conn (DbConnection): Connection to the database
     """
     run_options_menu(conn, "Patient records", MENU, "Exit")

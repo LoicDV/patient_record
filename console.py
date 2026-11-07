@@ -1,7 +1,7 @@
 import re
 from collections.abc import Callable, Collection, Sequence
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal, overload
 
 DATE_FORMAT = "%Y-%m-%d"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M"
@@ -39,6 +39,28 @@ def validate_phone(value: str) -> str | None:
     """
     return None if PHONE_PATTERN.match(value) else "Invalid phone number."
 
+@overload
+def ask_text(
+    message: str,
+    *,
+    required: Literal[True] = ...,
+    max_length: int | None = ...,
+    default: str | None = ...,
+    validator: Validator | None = ...,
+) -> str: ...
+
+
+@overload
+def ask_text(
+    message: str,
+    *,
+    required: bool,
+    max_length: int | None = ...,
+    default: str | None = ...,
+    validator: Validator | None = ...,
+) -> str | None: ...
+
+
 def ask_text(
     message: str,
     *,
@@ -48,6 +70,9 @@ def ask_text(
     validator: Validator | None = None,
 ) -> str | None:
     """Ask for a line of text until it is valid.
+
+    The @overload declarations above only exist for type checkers: they
+    tell them that the result is always a str when the field is required.
 
     Args:
         message (str): Question displayed to the user
