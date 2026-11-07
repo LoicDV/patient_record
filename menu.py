@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from psycopg import errors, Error, OperationalError
+from actions import patient_actions
 from db import init_db, seed_db, DbConnection
 from console import ask_confirmation, print_title
 
@@ -82,12 +83,12 @@ def reset_database(conn: DbConnection) -> None:
         seed_db(conn)
 
 MENU = {
-    "1"  :  ("List patients", not_implemented),
-    "2"  :  ("Search a patient", not_implemented),
+    "1"  :  ("List patients", patient_actions.list_patients),
+    "2"  :  ("Search a patient", patient_actions.search_patient),
     "3"  :  ("Show a patient’s record", not_implemented),
-    "4"  :  ("Add a patient", not_implemented),
-    "5"  :  ("Update a patient", not_implemented),
-    "6"  :  ("Delete a patient", not_implemented),
+    "4"  :  ("Add a patient", patient_actions.add_patient),
+    "5"  :  ("Update a patient", patient_actions.update_patient),
+    "6"  :  ("Delete a patient", patient_actions.delete_patient),
     "7"  :  ("Add a consultation", not_implemented),
     "8"  :  ("Add a prescription", not_implemented),
     "9"  :  ("Add an allergy", not_implemented),
