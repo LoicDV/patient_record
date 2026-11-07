@@ -1,10 +1,11 @@
 from datetime import datetime
 
-from psycopg.rows import DictRow
+from psycopg.rows import class_row
 
 from db import DbConnection, fetch_required
+from models import Consultation
 
-def list_for_patient(conn: DbConnection, patient_id: int) -> list[DictRow]:
+def list_for_patient(conn: DbConnection, patient_id: int) -> list[Consultation]:
     """Return the consultations of a patient, the latest first.
 
     Args:
@@ -12,21 +13,22 @@ def list_for_patient(conn: DbConnection, patient_id: int) -> list[DictRow]:
         patient_id (int): ID of the patient
 
     Returns:
-        list[DictRow]: The consultations, with the doctor's name and specialty
+        list[Consultation]: The consultations, with the doctor's name and specialty
     """
-    return conn.execute(
-        """
-        SELECT c.id, c.consultation_date, c.reason, c.note,
-               d.first_name || ' ' || d.last_name AS doctor,
-               s.name AS specialty
-        FROM consultations c
-        JOIN doctors d ON d.id = c.doctor_id
-        JOIN specialties s ON s.id = d.specialty_id
-        WHERE c.patient_id = %s
-        ORDER BY c.consultation_date DESC
-        """,
-        (patient_id,),
-    ).fetchall()
+    with conn.cursor(row_factory=class_row(Consultation)) as cursor:
+        return cursor.execute(
+            """
+            SELECT c.id, c.consultation_date, c.reason, c.note,
+                   d.first_name || ' ' || d.last_name AS doctor,
+                   s.name AS specialty
+            FROM consultations c
+            JOIN doctors d ON d.id = c.doctor_id
+            JOIN specialties s ON s.id = d.specialty_id
+            WHERE c.patient_id = %s
+            ORDER BY c.consultation_date DESC
+            """,
+            (patient_id,),
+        ).fetchall()
 
 def create(
     conn: DbConnection,

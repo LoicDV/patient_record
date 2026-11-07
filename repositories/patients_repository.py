@@ -1,13 +1,10 @@
-from datetime import date
-
-from psycopg.rows import DictRow
+from psycopg.rows import class_row
 
 from db import DbConnection, fetch_required
+from models import Patient
 
 SELECT_PATIENTS = """
-    SELECT id, last_name, first_name, birth_date,
-           date_part('year', age(birth_date))::int AS age,
-           sex, phone, email
+    SELECT id, first_name, last_name, birth_date, sex, phone, email
     FROM patients
 """
 
@@ -22,18 +19,19 @@ def escape_like(term: str) -> str:
     """
     return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
-def list_all(conn: DbConnection) -> list[DictRow]:
+def list_all(conn: DbConnection) -> list[Patient]:
     """Return every patient, sorted by last name then first name.
 
     Args:
         conn (DbConnection): Connection to the database
 
     Returns:
-        list[DictRow]: The patients, with their age computed by PostgreSQL
+        list[Patient]: The patients
     """
-    return conn.execute(SELECT_PATIENTS + " ORDER BY last_name, first_name").fetchall()
+    with conn.cursor(row_factory=class_row(Patient)) as cursor:
+        return cursor.execute(SELECT_PATIENTS + " ORDER BY last_name, first_name").fetchall()
 
-def search(conn: DbConnection, term: str) -> list[DictRow]:
+def search(conn: DbConnection, term: str) -> list[Patient]:
     """Return the patients whose first or last name contains a text.
 
     The search is case-insensitive (ILIKE) and the text can appear anywhere
@@ -44,15 +42,16 @@ def search(conn: DbConnection, term: str) -> list[DictRow]:
         term (str): Text to search for
 
     Returns:
-        list[DictRow]: The matching patients, sorted by name
+        list[Patient]: The matching patients, sorted by name
     """
     query = SELECT_PATIENTS + """
         WHERE last_name ILIKE %(pattern)s OR first_name ILIKE %(pattern)s
         ORDER BY last_name, first_name
     """
-    return conn.execute(query, {"pattern": f"%{escape_like(term)}%"}).fetchall()
+    with conn.cursor(row_factory=class_row(Patient)) as cursor:
+        return cursor.execute(query, {"pattern": f"%{escape_like(term)}%"}).fetchall()
 
-def get_by_id(conn: DbConnection, patient_id: int) -> DictRow | None:
+def get_by_id(conn: DbConnection, patient_id: int) -> Patient | None:
     """Return one patient.
 
     Args:
@@ -60,35 +59,23 @@ def get_by_id(conn: DbConnection, patient_id: int) -> DictRow | None:
         patient_id (int): ID of the patient
 
     Returns:
-        DictRow | None: The patient, or None if the ID does not exist
+        Patient | None: The patient, or None if the ID does not exist
     """
-    return conn.execute(SELECT_PATIENTS + " WHERE id = %s", (patient_id,)).fetchone()
+    with conn.cursor(row_factory=class_row(Patient)) as cursor:
+        return cursor.execute(SELECT_PATIENTS + " WHERE id = %s", (patient_id,)).fetchone()
 
-def create(
-    conn: DbConnection,
-    first_name: str,
-    last_name: str,
-    birth_date: date,
-    sex: str,
-    phone: str | None,
-    email: str,
-) -> int:
-    """Insert a patient.
+def create(conn: DbConnection, patient: Patient) -> int:
+    """Insert a new patient.
 
     Args:
         conn (DbConnection): Connection to the database
-        first_name (str): First name
-        last_name (str): Last name
-        birth_date (date): Date of birth, not in the future
-        sex (str): 'M', 'F' or 'X'
-        phone (str | None): Phone number, optional
-        email (str): Email address, unique among patients
+        patient (Patient): Patient to save; its id is ignored
 
     Raises:
         psycopg.errors.UniqueViolation: If the email is already used
 
     Returns:
-        int: ID of the new patient
+        int: ID given to the patient by the database
     """
     cursor = conn.execute(
         """
@@ -96,38 +83,27 @@ def create(
         VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
-        (first_name, last_name, birth_date, sex, phone, email),
+        (patient.first_name, patient.last_name, patient.birth_date,
+         patient.sex, patient.phone, patient.email),
     )
     return fetch_required(cursor)["id"]
 
-def update(
-    conn: DbConnection,
-    patient_id: int,
-    first_name: str,
-    last_name: str,
-    birth_date: date,
-    sex: str,
-    phone: str | None,
-    email: str,
-) -> bool:
-    """Update every field of a patient and set updated_at to now.
+def update(conn: DbConnection, patient: Patient) -> bool:
+    """Save every field of an existing patient and set updated_at to now.
 
     Args:
         conn (DbConnection): Connection to the database
-        patient_id (int): ID of the patient to update
-        first_name (str): First name
-        last_name (str): Last name
-        birth_date (date): Date of birth, not in the future
-        sex (str): 'M', 'F' or 'X'
-        phone (str | None): Phone number, optional
-        email (str): Email address, unique among patients
+        patient (Patient): Patient to save, with its id
 
     Raises:
+        ValueError: If the patient has no id (it was never saved)
         psycopg.errors.UniqueViolation: If another patient uses the email
 
     Returns:
         bool: True if the patient was updated, False if the ID does not exist
     """
+    if patient.id is None:
+        raise ValueError("Cannot update a patient that was never saved")
     cursor = conn.execute(
         """
         UPDATE patients
@@ -135,7 +111,8 @@ def update(
             sex = %s, phone = %s, email = %s, updated_at = now()
         WHERE id = %s
         """,
-        (first_name, last_name, birth_date, sex, phone, email, patient_id),
+        (patient.first_name, patient.last_name, patient.birth_date,
+         patient.sex, patient.phone, patient.email, patient.id),
     )
     return cursor.rowcount == 1
 

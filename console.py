@@ -1,6 +1,7 @@
 import re
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from datetime import date, datetime
+from enum import Enum
 from typing import Any, Literal, overload
 
 DATE_FORMAT = "%Y-%m-%d"
@@ -248,6 +249,8 @@ def format_value(value: Any) -> str:
     """
     if value is None:
         return "-"
+    if isinstance(value, Enum):
+        return str(value.value)
     if isinstance(value, datetime):
         if value.tzinfo is not None:
             value = value.astimezone()  # show times in the local time zone
@@ -270,20 +273,32 @@ def truncate(text: str, width: int = MAX_COLUMN_WIDTH) -> str:
     """
     return text if len(text) <= width else text[: width - 3] + "..."
 
-def print_table(rows: Sequence[dict[str, Any]],
+def get_field(row: Any, key: str) -> Any:
+    """Read a field from a dictionary row or from an object (dataclass, model...).
+
+    Args:
+        row (Any): Dictionary, or object with an attribute or property named key
+        key (str): Name of the field
+
+    Returns:
+        Any: The value of the field
+    """
+    return row[key] if isinstance(row, Mapping) else getattr(row, key)
+
+def print_table(rows: Sequence[Any],
                 columns: Sequence[tuple[str, str]]) -> None:
     """Print rows as an aligned text table
 
     Args:
-        rows: Rows returned by the database, as dictionaries
-        columns: (key, header) pairs, in display order
+        rows: Dictionaries (query rows) or objects (models), all of the same kind
+        columns: (key, header) pairs, in display order; a key can name a property
     """
     if not rows:
         print("No results.")
         return
 
     cells = [
-        [truncate(format_value(row[key])) for key, _ in columns] for row in rows
+        [truncate(format_value(get_field(row, key))) for key, _ in columns] for row in rows
         ]
     headers = [header for _, header in columns]
     widths = [
