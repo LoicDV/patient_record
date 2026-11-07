@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from psycopg import errors, Error, OperationalError
-from actions import patient_actions
+from actions import patient_actions, allergy_actions
 from db import init_db, seed_db, DbConnection
 from console import ask_confirmation, print_title
 
@@ -91,7 +91,7 @@ MENU = {
     "6"  :  ("Delete a patient", patient_actions.delete_patient),
     "7"  :  ("Add a consultation", not_implemented),
     "8"  :  ("Add a prescription", not_implemented),
-    "9"  :  ("Add an allergy", not_implemented),
+    "9"  :  ("Add an allergy", allergy_actions.add_allergy),
     "10" :  ("Statistics", show_statistics),
     "11" :  ("Reset database", reset_database),
 }
