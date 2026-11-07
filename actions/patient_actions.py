@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from psycopg import errors
 
 from actions.pickers import choose_patient
@@ -6,14 +8,20 @@ from console import (
     ask_confirmation,
     ask_date,
     ask_text,
+    format_value,
     print_table,
     print_title,
     validate_email,
     validate_phone,
 )
 from db import DbConnection
-from models import SEXES, Patient
-from repositories import patients_repository
+from models import SEXES, Patient, Prescription
+from repositories import (
+    allergic_to_repository,
+    consultations_repository,
+    patients_repository,
+    prescriptions_repository,
+)
 
 PATIENT_COLUMNS = [
     ("id", "ID"),
@@ -124,3 +132,45 @@ def delete_patient(conn: DbConnection) -> None:
               "medical records must be kept.")
         return
     print(f"{patient.full_name} deleted.")
+
+def show_patient_record(conn: DbConnection) -> None:
+    """Display the full record of a patient.
+
+    Identity, allergies, then every consultation with its prescriptions.
+    Prescribed medications the patient is allergic to are flagged.
+
+    Args:
+        conn (DbConnection): Connection to the database
+    """
+    print_title("Patient record")
+    patient = choose_patient(conn)
+    if patient is None or patient.id is None:
+        return
+    allergies = allergic_to_repository.list_for_patient(conn, patient.id)
+    consultations = consultations_repository.list_for_patient(conn, patient.id)
+
+    prescriptions_by_consultation: defaultdict[int, list[Prescription]] = defaultdict(list)
+    for line in prescriptions_repository.list_for_patient(conn, patient.id):
+        prescriptions_by_consultation[line.consultation_id].append(line)
+    allergic_medication_ids = {allergy.medication_id for allergy in allergies}
+
+    print_title(f"{patient.last_name.upper()} {patient.first_name} (#{patient.id})")
+    print(f"Born: {format_value(patient.birth_date)} ({patient.age} years)   Sex: {patient.sex}")
+    print(f"Phone: {format_value(patient.phone)}   Email: {patient.email}")
+
+    print("\nAllergies")
+    print_table(allergies, [("medication", "Medication"), ("dosage", "Dosage"),
+                            ("severity", "Severity")])
+
+    print(f"\nConsultations ({len(consultations)})")
+    if not consultations:
+        print("No consultation.")
+    for consultation in consultations:
+        print(f"\n[{format_value(consultation.consultation_date)}] {consultation.reason}"
+              f" - Dr {consultation.doctor} ({consultation.specialty})")
+        if consultation.note:
+            print(f"    Notes: {consultation.note}")
+        for line in prescriptions_by_consultation[consultation.id]:
+            warning = "  /!\\ ALLERGY" if line.medication_id in allergic_medication_ids else ""
+            print(f"    - {line.medication} {line.dosage}: {line.instruction},"
+                  f" {line.duration_days} days{warning}")

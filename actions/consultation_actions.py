@@ -1,5 +1,3 @@
-"""Menu actions on consultations and prescriptions."""
-
 from actions.pickers import choose_consultation, choose_doctor, choose_medication, choose_patient
 from console import ask_confirmation, ask_datetime, ask_int, ask_text, print_title
 from db import DbConnection

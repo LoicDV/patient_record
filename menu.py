@@ -85,7 +85,7 @@ def reset_database(conn: DbConnection) -> None:
 MENU = {
     "1"  :  ("List patients", patient_actions.list_patients),
     "2"  :  ("Search a patient", patient_actions.search_patient),
-    "3"  :  ("Show a patient’s record", not_implemented),
+    "3"  :  ("Show a patient’s record", patient_actions.show_patient_record),
     "4"  :  ("Add a patient", patient_actions.add_patient),
     "5"  :  ("Update a patient", patient_actions.update_patient),
     "6"  :  ("Delete a patient", patient_actions.delete_patient),
